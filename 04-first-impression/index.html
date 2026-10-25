@@ -65,6 +65,7 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:4px}
 .scale button{aspect-ratio:1;max-width:100%;border:2px solid var(--line);background:var(--paper);color:var(--ink);border-radius:6px;font-family:var(--f-mono);font-size:18px;cursor:pointer;padding:0}
 .scale button:hover{border-color:var(--accent)}
 .ends{display:flex;justify-content:space-between;font-size:12px;color:var(--sub)}
+.verdict{font-size:18px;margin:2px 0}
 .big{font-family:var(--f-display);font-size:56px;line-height:1;color:var(--accent)}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
 .stat{border-top:2px solid var(--ink);padding-top:6px;display:flex;flex-direction:column;gap:2px}
@@ -155,6 +156,8 @@ function faceSVG(id){
   </svg>`;
 }
 /* 顔は 2 種類：描いた顔（svg）と、AI で作った架空の人の写真（photo。faces/p01.jpg〜p12.jpg） */
+/* 写真の顔の組。2 = 2026/10/25 に 12 人を全員 東アジア系にそろえた組（1 は前の組）。集計は今の組だけ */
+const PHOTO_FS = 2;
 const SETS = { svg: { name: "描いた顔", short: "絵" }, photo: { name: "写真の顔", short: "写真" } };
 const photoSrc = (id) => `faces/p${String(id - 100).padStart(2, "0")}.jpg`;
 function faceHTML(id, set){
@@ -326,6 +329,47 @@ function matchChart(x, y, ids, set){
   return s + `</svg>`;
 }
 
+/* 判定の線（12 人のとき）：ずれ 1 以内が 10 人以上＝かなり一緒、7〜9 人＝だいたい同じ、6 人以下＝けっこう変わった */
+const VERDICT = { hi: "0.1 秒でも 1 秒でも、ほとんど同じ印象でした。", mid: "だいたい同じ。でも、何人かは印象が動きました。", lo: "0.1 秒と 1 秒で、印象が動いた顔が多めです。" };
+const VERDICT_SHORT = { hi: "かなり一緒", mid: "まあまあ一緒", lo: "けっこう違う" };
+const nearVerdict = (near) => near >= 10 ? "hi" : near >= 7 ? "mid" : "lo";
+/* r の区切り：0.7 以上＝かなり一緒、0.4〜0.7＝まあまあ一緒、0.4 未満＝ぜんぜん違う（負の r も「ぜんぜん違う」）。根拠は README */
+const R_SHORT = { hi: "かなり一緒", mid: "まあまあ一緒", lo: "ぜんぜん違う" };
+const rVerdict = (r) => r === null || !Number.isFinite(r) ? null : r >= 0.7 ? "hi" : r >= 0.4 ? "mid" : "lo";
+const ZCOL = { lo: "var(--d2)", mid: "var(--d1)", hi: "var(--d0)" };
+const ZB = {
+  near: { max: 12, zones: [[0, 6.5, "lo"], [6.5, 9.5, "mid"], [9.5, 12, "hi"]], names: VERDICT_SHORT, ticks: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], fmt: (v) => num(v, Number.isInteger(v) ? 0 : 1), zone: nearVerdict, title: "12 人中 ずれ 1 以内だった顔の数" },
+  r: { max: 1, zones: [[0, 0.4, "lo"], [0.4, 0.7, "mid"], [0.7, 1, "hi"]], names: R_SHORT, ticks: [0, 0.2, 0.4, 0.6, 0.8, 1], fmt: (v) => num(v, 2), zone: rVerdict, mark: 0.73, title: "0.1 秒と 1 秒の一致（相関 r）" },
+};
+/* 横棒：背景に 3 つの区切り（色と名前）、棒は入った区切りの色。rows = [{label, value}]（value が null なら棒なし） */
+function zoneBar(kind, rows){
+  const z = ZB[kind], L = 84, R = 348, W = R - L, X = (v) => L + Math.max(0, Math.min(z.max, v)) / z.max * W;
+  const top = z.mark !== undefined ? 30 : 18, rh = 28, H = top + rows.length * rh + 20;
+  let s = `<svg viewBox="0 0 360 ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${z.title}">`;
+  z.zones.forEach(([a, b, k]) => {
+    s += `<rect x="${X(a)}" y="${top - 4}" width="${X(b) - X(a)}" height="${rows.length * rh + 4}" fill="${ZCOL[k]}" fill-opacity=".16"/>`;
+    s += `<text x="${(X(a) + X(b)) / 2}" y="${top - 8}" text-anchor="middle" font-size="10.5" fill="${ZCOL[k]}" font-weight="700">${z.names[k]}</text>`;
+  });
+  z.zones.slice(1).forEach(([a]) => s += `<line x1="${X(a)}" y1="${top - 4}" x2="${X(a)}" y2="${top + rows.length * rh}" stroke="var(--sub)" stroke-width="1" stroke-dasharray="3 3"/>`);
+  rows.forEach((row, i) => {
+    const y = top + i * rh, v = row.value;
+    s += `<text x="${L - 6}" y="${y + 15}" text-anchor="end" font-size="12" fill="var(--ink)">${row.label}</text>`;
+    if (v === null || !Number.isFinite(v)) { s += `<text x="${L + 4}" y="${y + 15}" font-size="12" fill="var(--sub)">—</text>`; return; }
+    const k = z.zone(v), x2 = X(v);
+    s += `<rect x="${L}" y="${y + 4}" width="${Math.max(2, x2 - L)}" height="16" rx="3" fill="${ZCOL[k]}"/>`;
+    const lab = z.fmt(v), inside = x2 > R - 34;
+    s += `<text x="${inside ? x2 - 4 : x2 + 4}" y="${y + 16.5}" text-anchor="${inside ? "end" : "start"}" font-size="12" font-weight="700" fill="${inside ? "#fff" : "var(--ink)"}" font-family="var(--f-mono)">${lab}</text>`;
+  });
+  const by = top + rows.length * rh;
+  s += `<line x1="${L}" y1="${by}" x2="${R}" y2="${by}" stroke="var(--line)"/>`;
+  z.ticks.forEach((t) => s += `<text x="${X(t)}" y="${by + 14}" text-anchor="middle" font-size="10" fill="var(--sub)" font-family="var(--f-mono)">${z.max === 1 ? String(t).replace(/^0(?=\.)/, "") : t}</text>`);
+  if (z.mark !== undefined) {
+    const mx = X(z.mark);
+    s += `<line x1="${mx}" y1="${top - 4}" x2="${mx}" y2="${by}" stroke="var(--ink)" stroke-width="1.5"/>`;
+    s += `<text x="${mx}" y="9" text-anchor="middle" font-size="10" fill="var(--ink)">研究 .73 ▼</text>`;
+  }
+  return s + `</svg>`;
+}
 function pearson(x, y){
   const n = x.length, mx = x.reduce((a, b) => a + b) / n, my = y.reduce((a, b) => a + b) / n;
   let sxy = 0, sxx = 0, syy = 0;
@@ -361,28 +405,30 @@ function faceResult(res, ids, set){
   let maxI = 0; ids.forEach((id, i) => { if (Math.abs(x[i]-y[i]) > Math.abs(x[maxI]-y[maxI])) maxI = i; });
   const myN = nextCount("face_" + set);
   const rTxt = r === null ? "—" : r.toFixed(2);
-  const verdict = r === null ? "答えが全部同じだったので、一致の数字は出せませんでした。" :
-    r >= 0.7 ? "0.1 秒でも 1 秒でも、ほとんど同じ印象でした。" :
-    r >= 0.4 ? "だいたい同じ。でも、何人かは印象が動きました。" :
-    "0.1 秒と 1 秒で、印象がかなり変わりました。";
-  const shareTxt = `0.1秒と1秒の一致（${SETS[set].name}）r=${rTxt}／${N_FACES}人中 同じ答え${same}人（0.1秒の回は実測${Math.round(t1)}ms）#場を温める研究所`;
+  // 判定は「ずれ 1 以内の人数」で決める（r は答えが狭い範囲に集まると下がり、体感と合わないため。線は README）
+  const vk = nearVerdict(near);
+  const verdict = VERDICT[vk];
+  const shareTxt = `0.1秒と1秒（${SETS[set].name}）${N_FACES}人中 同じ答え${same}人・ずれ1以内${near}人「${VERDICT_SHORT[vk]}」（0.1秒の回は実測${Math.round(t1)}ms）#場を温める研究所`;
   const el = $(`<div style="display:contents">
     <section class="sheet">
       <span class="tag">実験 1 の結果・${SETS[set].name}</span>
-      <p class="match">${N_FACES} 人中 <b class="mono">${same}</b> 人 同じ答え</p>
-      <p class="sub">ずれが 1 以内の人まで入れると <b class="mono">${near}</b> 人。輪が 0.1 秒の答え、点が 1 秒の答え（1〜7）。</p>
+      <p class="match"><b>${VERDICT_SHORT[vk]}${vk === "hi" ? "！" : ""}</b></p>
+      <p class="verdict">${verdict}</p>
+      <div class="mchart">${zoneBar("near", [{ label: "あなた", value: near }])}</div>
+      <p class="sub">${N_FACES} 人中 ずれ 1 以内が <b class="mono">${near}</b> 人（ぴったり同じは <b class="mono">${same}</b> 人）。</p>
+      <div class="mchart">${zoneBar("r", [{ label: "あなた", value: r }])}</div>
+      <p class="sub">下の棒は研究と比べる用の数字（相関 r）で、${rVerdict(r) ? `「${R_SHORT[rVerdict(r)]}」のところ` : "答えが全部同じで出せません"}。r は答えが 3〜5 のような狭い範囲に集まると、ほとんど同じでも低めに出ます。</p>
+      <p class="sub">輪が 0.1 秒の答え、点が 1 秒の答え（1〜7）。</p>
       <div class="mchart">${matchChart(x, y, ids, set)}</div>
       <div class="legend"><span><i style="background:var(--d0)"></i>同じ</span><span><i style="background:var(--d1)"></i>ずれ 1</span><span><i style="background:var(--d2)"></i>ずれ 2</span><span><i style="background:var(--d3)"></i>ずれ 3 以上</span></div>
     </section>
     <section class="sheet">
-      <p class="sub">あなたの 0.1 秒の答えと 1 秒の答えの一致（相関。1 に近いほど同じ）</p>
-      <div class="big mono">${rTxt}</div>
-      <p><b>${verdict}</b></p>
       <div class="stats">
         <div class="stat"><b class="mono">${same} / ${N_FACES}</b><span>まったく同じ答え</span></div>
         <div class="stat"><b class="mono">${near} / ${N_FACES}</b><span>ずれが 1 以内</span></div>
         <div class="stat"><b class="mono">${mad.toFixed(1)}</b><span>ずれの平均（7 段階で）</span></div>
       </div>
+      <p class="note">相関 r = <span class="mono">${rTxt}</span>（研究は .73。ただし研究は「別の人たちの判断」とくらべていて、比べ方が違います）。</p>
     </section>
     <section class="sheet">
       <h2>答えの散らばり</h2>
@@ -429,8 +475,8 @@ function faceResult(res, ids, set){
   el.querySelector("#other").onclick = () => faceIntro(set === "photo" ? "svg" : "photo");
   el.querySelector("#again").onclick = () => faceIntro(set);
   crowdBlock(el.querySelector("#crowd"), "face",
-    Object.assign({ kind: "face", v: 1, set, r1: x, r2: y, ms: Math.round(t1), hz: Math.round(hz), jank: res.jank }, myN === null ? {} : { n: myN }),
-    { r, mad, set, n: myN });
+    Object.assign({ kind: "face", v: 1, set, fs: set === "photo" ? PHOTO_FS : undefined, r1: x, r2: y, ms: Math.round(t1), hz: Math.round(hz), jank: res.jank }, myN === null ? {} : { n: myN }),
+    { r, mad, near, same, set, n: myN });
   el.querySelector("#home").onclick = home;
 }
 
@@ -539,8 +585,8 @@ function demoStats(){
     return faces; };
   return { demo: true,
     face: {
-      svg: { n: 137, rBins: [3, 4, 6, 9, 14, 20, 26, 25, 18, 9], rNone: 3, meanAbs: 1.6, faces: mk(2.4) },
-      photo: { n: 121, rBins: [1, 1, 2, 4, 7, 12, 20, 30, 28, 14], rNone: 2, meanAbs: 1.1, faces: mk(0.9) } },
+      svg: { n: 137, rBins: [3, 4, 6, 9, 14, 20, 26, 25, 18, 9], rNone: 3, meanAbs: 1.6, faces: mk(2.4), nearBins: [0, 0, 1, 2, 4, 9, 14, 22, 26, 25, 18, 11, 5], meanSame: 3.9, meanNear: 8.2, meanR: 0.48 },
+      photo: { n: 121, rBins: [1, 1, 2, 4, 7, 12, 20, 30, 28, 14], rNone: 2, meanAbs: 1.1, faces: mk(0.9), nearBins: [0, 0, 0, 0, 1, 2, 5, 10, 17, 24, 28, 21, 13], meanSame: 5.1, meanNear: 9.6, meanR: 0.62 } },
     flip: { A: { n: 71, before: 2.1, after: 5.6, flip: 0.68 }, B: { n: 66, before: 2.2, after: 2.9, flip: 0.09 } },
     later: {
       face: {
@@ -561,11 +607,16 @@ function crowdCompare(fs){
     const ids = Array.from({ length: N_FACES }, (_, i) => 101 + i).filter((id) => f.faces && f.faces[id]);
     const cr = ids.length > 2 ? pearson(ids.map((id) => Number(f.faces[id].m1)), ids.map((id) => Number(f.faces[id].m2))) : null;
     const bm = binMean(f);
-    return `<tr><td>${SETS[k].name} <span class="sub mono">${Number(f.n)} 人</span></td><td class="mono">${bm === null ? "—" : bm.toFixed(2)}</td><td class="mono">${num(f.meanAbs)}</td><td class="mono">${cr === null ? "—" : cr.toFixed(2)}</td></tr>`; };
+    rs.push(`${SETS[k].name} ${bm === null ? "—" : bm.toFixed(2)}／${cr === null ? "—" : cr.toFixed(2)}`);
+    const nv = f.meanNear === undefined ? "" : `<br><span class="sub">${VERDICT_SHORT[nearVerdict(Number(f.meanNear))]}</span>`;
+    return `<tr><td>${SETS[k].name} <span class="sub mono">${Number(f.n)} 人</span></td><td class="mono">${f.meanNear === undefined ? "—" : num(f.meanNear)}${nv}</td><td class="mono">${f.meanSame === undefined ? "—" : num(f.meanSame)}</td><td class="mono">${num(f.meanAbs)}</td></tr>`; };
+  const rs = [];
+  const body = row("svg") + row("photo");
   return `<h2>描いた顔と写真の顔、くらべると</h2>
-    <table class="cmp"><thead><tr><th></th><th>1 人ずつの一致（平均）</th><th>ずれの平均</th><th>みんなの平均どうしの一致</th></tr></thead>
-    <tbody>${row("svg")}${row("photo")}</tbody></table>
-    <p class="sub">一致は 1 に近いほど「0.1 秒でも 1 秒でも同じ印象」。描いた顔は手がかりが少なく、時間をかけると口の形など 1 か所で決めやすい、という見立てを確かめています。</p>`;
+    <table class="cmp"><thead><tr><th></th><th>ずれ 1 以内<br><span class="sub">12 人中・平均</span></th><th>ぴったり同じ<br><span class="sub">平均</span></th><th>ずれの平均</th></tr></thead>
+    <tbody>${body}</tbody></table>
+    <p class="sub">ずれ 1 以内が多いほど「0.1 秒でも 1 秒でも同じ印象」（10 人以上＝かなり一緒、7〜9 人＝まあまあ一緒、6 人以下＝けっこう違う）。描いた顔は手がかりが少なく、時間をかけると口の形など 1 か所で決めやすい、という見立てを確かめています。</p>
+    <p class="note">研究と比べる用の数字（相関 r。研究は .73、ただし比べ方が違います）：1 人ずつの r の平均／みんなの平均どうしの r … ${rs.join("、")}。r は答えが狭い範囲に集まると、ほとんど同じでも低めに出ます。</p>`;
 }
 const num = (v, d = 1) => Number.isFinite(Number(v)) ? Number(v).toFixed(d) : "—";
 function crowdFace(f, mine, set){
@@ -579,6 +630,20 @@ function crowdFace(f, mine, set){
   hist += `<line x1="18" y1="130" x2="351" y2="130" stroke="var(--line)"/>`;
   [[-1, 20], [0, 185], [1, 350]].forEach(([v, x]) => hist += `<text x="${x}" y="148" text-anchor="middle" font-size="12" fill="var(--sub)" font-family="var(--f-mono)">${v}</text>`);
   hist += `<text x="185" y="166" text-anchor="middle" font-size="12" fill="var(--ink)">0.1 秒と 1 秒の一致（r）→ 右ほど同じ</text></svg>`;
+  // ずれ 1 以内の顔の数（0〜12）ごとの人数。Code.gs が古いと nearBins がない
+  let nh = "";
+  if (Array.isArray(f.nearBins)) {
+    const nb = f.nearBins.map(Number), nmax = Math.max(1, ...nb), myNear = mine && Number.isInteger(mine.near) ? mine.near : -1;
+    nh = `<svg viewBox="0 0 360 170" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ずれ 1 以内の人数の分かれ方">`;
+    nb.forEach((c, i) => { const h = c / nmax * 110, x = 20 + i * 25.5;
+      const col = i >= 10 ? "var(--d0)" : i >= 7 ? "var(--d1)" : "var(--d2)";
+      nh += `<rect x="${x}" y="${130 - Math.max(h, i === myNear ? 2 : 0)}" width="22" height="${Math.max(h, i === myNear ? 2 : 0)}" rx="2" fill="${col}"${i === myNear ? ` stroke="var(--ink)" stroke-width="2.5"` : ""}/>`;
+      if (i === myNear) nh += `<text x="${x + 11}" y="${(c ? 110 : 124) - h}" text-anchor="middle" font-size="11" fill="var(--ink)">あなた</text>`;
+      if (c) nh += `<text x="${x + 11}" y="${124 - h}" text-anchor="middle" font-size="11" fill="var(--sub)" font-family="var(--f-mono)">${c}</text>`;
+      if (i % 2 === 0) nh += `<text x="${x + 11}" y="148" text-anchor="middle" font-size="12" fill="var(--sub)" font-family="var(--f-mono)">${i}</text>`; });
+    nh += `<line x1="18" y1="130" x2="351" y2="130" stroke="var(--line)"/>`;
+    nh += `<text x="185" y="166" text-anchor="middle" font-size="12" fill="var(--ink)">12 人中 ずれ 1 以内だった顔の数 → 右ほど同じ</text></svg>`;
+  }
   // みんなの平均：顔ごとに 0.1 秒の平均（横）と 1 秒の平均（縦）
   const ids = Array.from({ length: N_FACES }, (_, i) => 101 + i).filter((id) => f.faces && f.faces[id]);
   const m1 = ids.map((id) => Number(f.faces[id].m1)), m2 = ids.map((id) => Number(f.faces[id].m2));
@@ -590,10 +655,20 @@ function crowdFace(f, mine, set){
   sc += `<line x1="${X(1)}" y1="${Y(1)}" x2="${X(7)}" y2="${Y(7)}" stroke="var(--sub)" stroke-dasharray="4 4"/>`;
   ids.forEach((id, i) => { sc += faceInSVG(id, set, X(m1[i]) - 15, Y(m2[i]) - 18, 30, 36); });
   sc += `<text x="190" y="348" text-anchor="middle" font-size="12" fill="var(--ink)">0.1 秒のみんなの平均 →</text></svg>`;
+  const meanR = Number.isFinite(Number(f.meanR)) ? Number(f.meanR) : binMean(f);
+  const mrow = (v) => mine ? [{ label: "あなた", value: v }] : [];
+  const zb = f.meanNear === undefined ? "" : `<div class="mchart">${zoneBar("near", mrow(mine && mine.near).concat([{ label: "みんなの平均", value: Number(f.meanNear) }]))}</div>
+    <div class="mchart">${zoneBar("r", mrow(mine && mine.r).concat([{ label: "みんなの平均", value: meanR }]))}</div>
+    <p class="sub">上：12 人中 ずれ 1 以内の顔の数。下：研究と比べる用の相関 r（1 人ずつの r の平均）。みんなの平均は各実験の 1 回目の人だけ。</p>`;
   return `<p><b>${SETS[set].name}</b>：<b class="mono">${Number(f.n)}</b> 人が結果を加えました。</p>
-    <p class="sub">一致（r）の分かれ方。${my >= 0 ? "オレンジの棒が、あなたのいるところ。" : ""}</p>
+    ${zb}
+    ${nh ? `<p class="sub">みんなの平均：12 人中 ずれ 1 以内 <b class="mono">${num(f.meanNear)}</b> 人・ぴったり同じ <b class="mono">${num(f.meanSame)}</b> 人 → <b>${VERDICT_SHORT[nearVerdict(Number(f.meanNear))]}</b></p>
+    <p class="sub">ずれ 1 以内だった顔の数の分かれ方（緑＝かなり一緒、黄＝まあまあ一緒、橙＝けっこう違う）。${mine && Number.isInteger(mine.near) ? "黒い枠の棒が、あなたのいるところ。" : ""}</p>
+    <div class="chart">${nh}</div>` : ""}
+    ${nh ? `<details><summary>研究と比べる用：相関 r の分かれ方</summary>` : `<p class="sub">一致（r）の分かれ方。${my >= 0 ? "オレンジの棒が、あなたのいるところ。" : ""}</p>`}
     <div class="chart">${hist}</div>
     ${f.rNone ? `<p class="sub">ほかに ${Number(f.rNone)} 人は、答えが全部同じで r を出せませんでした。</p>` : ""}
+    ${nh ? `<p class="note">研究は .73（ただし比べ方が違います）。r は答えが狭い範囲に集まると、ほとんど同じでも低めに出ます。</p></details>` : ""}
     <div class="stats">
       <div class="stat"><b class="mono">${num(f.meanAbs)}</b><span>みんなの ずれの平均</span></div>
       ${mine ? `<div class="stat"><b class="mono">${num(mine.mad)}</b><span>あなたの ずれの平均</span></div>` : ""}
