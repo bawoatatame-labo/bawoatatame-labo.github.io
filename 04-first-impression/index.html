@@ -16,16 +16,19 @@
   --bg:#eef1f3; --paper:#ffffff; --ink:#1d2733; --sub:#5b6875; --line:#cfd6dc;
   --accent:#e8742a; --accent-ink:#ffffff; --blue:#2f6f9f; --good:#2e8b57;
   --stage:#a9adb2; --stage-ink:#1d2733;
+  --d0:#2e8b57; --d1:#d9a400; --d2:#e8742a; --d3:#d8402a; --d4:#a8191f;
   --f-display:"Dela Gothic One","Hiragino Sans","Yu Gothic",sans-serif;
   --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic","Meiryo",sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,"Consolas",monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#141a21; --paper:#1d252e; --ink:#e7edf2; --sub:#9aa7b3; --line:#33404c;
-  --accent:#f08a45; --accent-ink:#141a21; --blue:#7fb3db; --good:#5cc08a; color-scheme:dark}}
+  --accent:#f08a45; --accent-ink:#141a21; --blue:#7fb3db; --good:#5cc08a; color-scheme:dark;
+  --d0:#5cc08a; --d1:#f0c419; --d2:#f08a45; --d3:#ee6a55; --d4:#ff8a80}}
 :root[data-theme="dark"]{
   --bg:#141a21; --paper:#1d252e; --ink:#e7edf2; --sub:#9aa7b3; --line:#33404c;
-  --accent:#f08a45; --accent-ink:#141a21; --blue:#7fb3db; --good:#5cc08a; color-scheme:dark}
+  --accent:#f08a45; --accent-ink:#141a21; --blue:#7fb3db; --good:#5cc08a; color-scheme:dark;
+  --d0:#5cc08a; --d1:#f0c419; --d2:#f08a45; --d3:#ee6a55; --d4:#ff8a80}
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.7;
   background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
@@ -90,6 +93,13 @@ ol.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:4px}
 .bar{display:grid;grid-template-columns:5.5em 1fr 2.5em;gap:8px;align-items:center;font-size:14px}
 .bar i{display:block;height:14px;background:var(--blue);border-radius:2px}
 .bar i.after{background:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--sub)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%}
+.match{font-family:var(--f-display);font-size:clamp(24px,7vw,34px);line-height:1.3}
+.match b{color:var(--d0);font-weight:400;font-size:1.5em}
+.mchart svg{display:block;width:100%;height:auto}
+.warn{color:var(--d3);font-size:14px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -191,14 +201,14 @@ function home(){
     <section class="sheet">
       <span class="tag">場を温める研究所</span>
       <h1>第一印象の実験室</h1>
-      <p>動画の研究を、あなたのスマホでもやってみる所です。どちらも 2 分ほど。答えはこの端末の中だけで計算して、どこにも送りません。</p>
+      <p>動画の研究を、あなたのスマホでもやってみる所です。どちらも 2 分ほど。終わると、答え（数字だけ・名前なし）が自動で<b>みんなの結果に入ります</b>。</p>
     </section>
     <div class="cards">
       <button class="pick" id="go-face"><span class="mono">実験 1</span><b>0.1 秒と 1 秒で、印象は変わる？</b><span class="sub">知らない人の顔を 0.1 秒だけ見て答える。次に同じ顔を 1 秒見て、もう一度答える。</span></button>
       <button class="pick" id="go-flip"><span class="mono">実験 2</span><b>第一印象、ひっくり返せる？</b><span class="sub">ある人の話を読んで印象を答える。続きを読んで、もう一度答える。</span></button>
     </div>
     <button class="ghost" id="go-crowd">みんなの結果を見る</button>
-    <p class="note">実験 1 の顔は 2 種類から選べます。プログラムで描いた顔と、AI で作った写真の顔。どちらも架空の人で、実在の人ではありません。元になった研究は、それぞれの結果の画面に書いてあります。</p>
+    <p class="note">実験 1 の顔は 2 種類から選べます。プログラムで描いた顔と、AI で作った写真の顔。どちらも架空の人で、実在の人ではありません。元になった研究は、それぞれの結果の画面に書いてあります。みんなの結果は、各実験の 1 回目の人だけで出します（2 回目以降は別に数えます）。</p>
   </div>`));
   document.getElementById("go-crowd").onclick = crowdView;
   document.getElementById("go-face").onclick = faceIntro;
@@ -222,6 +232,7 @@ function faceIntro(pre){
       <li>「この人、信頼できそう？」を 1〜7 で答えます。${N_FACES} 人ぶん。</li>
       <li>次に、同じ ${N_FACES} 人が順番を変えて <b>1 秒</b>ずつ出ます。もう一度答えます。</li>
     </ol>
+    <p class="sub"><b>答え（数字だけ・名前なし）は、みんなの結果に入ります。</b>終わると自動で送られます。</p>
     <p class="sub">考えこまず、ぱっと感じたままで大丈夫です。画面を明るくして、ほかのアプリは閉じておくと時間が正確になります。</p>
     <div class="row"><button class="go" id="start">はじめる</button><button class="ghost" id="back">もどる</button></div>
   </section>`);
@@ -293,6 +304,28 @@ async function runFace(set){
   faceResult(res, ids, set);
 }
 
+/* 何回目か：条件ごとの回数をこの端末に数える（使えないときは null＝n を送らない） */
+function nextCount(cond){
+  try { const k = "bawo04_count_" + cond; const n = (parseInt(localStorage.getItem(k), 10) || 0) + 1; localStorage.setItem(k, String(n)); return n; }
+  catch (e) { return null; }
+}
+const dcol = (d) => `var(--d${Math.min(4, d)})`;
+/* 顔 12 人ぶんの 0.1 秒（輪）と 1 秒（点）を並べる。同じ答え＝緑、ずれるほど赤く */
+function matchChart(x, y, ids, set){
+  const W = 360, L = 24, top = 14, step = 20, cw = (W - L - 4) / ids.length;
+  const Y = (v) => top + (7 - v) * step, bot = Y(1) + 12, th = 28, tw = 23, H = bot + 6 + th + 4;
+  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="顔ごとの 0.1 秒と 1 秒の答え。${ids.length} 人中 ${x.filter((v, i) => v === y[i]).length} 人が同じ答え">`;
+  for (let v = 1; v <= 7; v++) s += `<line x1="${L}" y1="${Y(v)}" x2="${W - 2}" y2="${Y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="11" fill="var(--sub)" font-family="var(--f-mono)">${v}</text>`;
+  ids.forEach((id, i) => {
+    const cx = L + cw * (i + 0.5), d = Math.abs(x[i] - y[i]), c = dcol(d);
+    if (d) s += `<line x1="${cx}" y1="${Y(x[i])}" x2="${cx}" y2="${Y(y[i])}" stroke="${c}" stroke-width="3" stroke-opacity=".55"/>`;
+    s += `<circle cx="${cx}" cy="${Y(x[i])}" r="7" fill="var(--paper)" stroke="${c}" stroke-width="2.5"/>`;
+    s += `<circle cx="${cx}" cy="${Y(y[i])}" r="4" fill="${c}"/>`;
+    s += faceInSVG(id, set, cx - tw / 2, bot + 6, tw, th);
+  });
+  return s + `</svg>`;
+}
+
 function pearson(x, y){
   const n = x.length, mx = x.reduce((a, b) => a + b) / n, my = y.reduce((a, b) => a + b) / n;
   let sxy = 0, sxx = 0, syy = 0;
@@ -326,6 +359,7 @@ function faceResult(res, ids, set){
   const avg = (a) => a.reduce((p, q) => p + q, 0) / a.length;
   const t1 = avg(res.t1), hz = 1000 / res.frameMs;
   let maxI = 0; ids.forEach((id, i) => { if (Math.abs(x[i]-y[i]) > Math.abs(x[maxI]-y[maxI])) maxI = i; });
+  const myN = nextCount("face_" + set);
   const rTxt = r === null ? "—" : r.toFixed(2);
   const verdict = r === null ? "答えが全部同じだったので、一致の数字は出せませんでした。" :
     r >= 0.7 ? "0.1 秒でも 1 秒でも、ほとんど同じ印象でした。" :
@@ -335,6 +369,12 @@ function faceResult(res, ids, set){
   const el = $(`<div style="display:contents">
     <section class="sheet">
       <span class="tag">実験 1 の結果・${SETS[set].name}</span>
+      <p class="match">${N_FACES} 人中 <b class="mono">${same}</b> 人 同じ答え</p>
+      <p class="sub">ずれが 1 以内の人まで入れると <b class="mono">${near}</b> 人。輪が 0.1 秒の答え、点が 1 秒の答え（1〜7）。</p>
+      <div class="mchart">${matchChart(x, y, ids, set)}</div>
+      <div class="legend"><span><i style="background:var(--d0)"></i>同じ</span><span><i style="background:var(--d1)"></i>ずれ 1</span><span><i style="background:var(--d2)"></i>ずれ 2</span><span><i style="background:var(--d3)"></i>ずれ 3 以上</span></div>
+    </section>
+    <section class="sheet">
       <p class="sub">あなたの 0.1 秒の答えと 1 秒の答えの一致（相関。1 に近いほど同じ）</p>
       <div class="big mono">${rTxt}</div>
       <p><b>${verdict}</b></p>
@@ -389,8 +429,8 @@ function faceResult(res, ids, set){
   el.querySelector("#other").onclick = () => faceIntro(set === "photo" ? "svg" : "photo");
   el.querySelector("#again").onclick = () => faceIntro(set);
   crowdBlock(el.querySelector("#crowd"), "face",
-    { kind: "face", v: 1, set, r1: x, r2: y, ms: Math.round(t1), hz: Math.round(hz), jank: res.jank },
-    { r, mad, set });
+    Object.assign({ kind: "face", v: 1, set, r1: x, r2: y, ms: Math.round(t1), hz: Math.round(hz), jank: res.jank }, myN === null ? {} : { n: myN }),
+    { r, mad, set, n: myN });
   el.querySelector("#home").onclick = home;
 }
 
@@ -415,6 +455,7 @@ function flipIntro(){
       <li>話の続きを読んで、もう一度答えます。</li>
     </ol>
     <p class="sub">続きは 2 種類あって、どちらが出るかはくじで決まります。</p>
+    <p class="sub"><b>答え（数字だけ・名前なし）は、みんなの結果に入ります。</b>終わると自動で送られます。</p>
     <div class="row"><button class="go" id="start">はじめる</button><button class="ghost" id="back">もどる</button></div>
   </section>`);
   show(el);
@@ -441,6 +482,7 @@ async function runFlip(){
   const d = after - before;
   const msg = before <= 3 && after >= 5 ? "印象が、ひっくり返りました。" : d >= 2 ? "印象が、かなり良くなりました。" : d >= 1 ? "少しだけ、ましになりました。" : d === 0 ? "印象は変わりませんでした。" : "印象が、悪くなりました。";
   const w = (v) => `${(v / 7) * 100}%`;
+  const myN = nextCount("flip");
   const shareTxt = `第一印象ひっくり返し実験：${CONT[grp].name}で ${before}→${after} #場を温める研究所`;
   const el = $(`<div style="display:contents">
     <section class="sheet">
@@ -475,7 +517,7 @@ async function runFlip(){
   el.querySelector("#copy").onclick = () => copyText(shareTxt, el.querySelector("#share"), el.querySelector("#copied"));
   el.querySelector("#again").onclick = flipIntro;
   el.querySelector("#home").onclick = home;
-  crowdBlock(el.querySelector("#crowd"), "flip", { kind: "flip", v: 1, grp, before, after }, { grp });
+  crowdBlock(el.querySelector("#crowd"), "flip", Object.assign({ kind: "flip", v: 1, grp, before, after }, myN === null ? {} : { n: myN }), { grp, n: myN });
 }
 
 /* ---------- みんなの結果 ---------- */
@@ -499,7 +541,12 @@ function demoStats(){
     face: {
       svg: { n: 137, rBins: [3, 4, 6, 9, 14, 20, 26, 25, 18, 9], rNone: 3, meanAbs: 1.6, faces: mk(2.4) },
       photo: { n: 121, rBins: [1, 1, 2, 4, 7, 12, 20, 30, 28, 14], rNone: 2, meanAbs: 1.1, faces: mk(0.9) } },
-    flip: { A: { n: 71, before: 2.1, after: 5.6, flip: 0.68 }, B: { n: 66, before: 2.2, after: 2.9, flip: 0.09 } } };
+    flip: { A: { n: 71, before: 2.1, after: 5.6, flip: 0.68 }, B: { n: 66, before: 2.2, after: 2.9, flip: 0.09 } },
+    later: {
+      face: {
+        svg: { n: 23, rBins: [0, 1, 1, 2, 3, 4, 5, 4, 3, 0], rNone: 0, meanAbs: 1.4, faces: mk(2.0) },
+        photo: { n: 19, rBins: [0, 0, 1, 1, 2, 3, 5, 4, 3, 0], rNone: 0, meanAbs: 1.0, faces: mk(0.9) } },
+      flip: { A: { n: 8, before: 2.3, after: 5.3, flip: 0.6 }, B: { n: 7, before: 2.0, after: 3.0, flip: 0.1 } } } };
 }
 /* 古い形（face が 1 つだけ）の集計が来ても、描いた顔として読む */
 const faceSets = (face) => face && (face.svg || face.photo) ? face : { svg: face };
@@ -570,38 +617,50 @@ function crowdFlip(fl, mine){
     </div>`; }).join("");
 }
 function renderCrowd(cv, s, kind, mine){
+  const split = !!s.later;   // Code.gs が古いと later がない：全部を 1 つとして出す
+  const mineIn = mine && !(split && mine.n > 1) ? mine : null;   // 2 回目以降の人は 1 回目の集計の中にいない
   let h = s.demo ? `<p class="sub"><b>これは見た目を確かめるための見本の数字で、本物ではありません。</b>公開版では、実験した人みんなの結果が出ます。</p>` : "";
+  if (split) h += `<p class="sub">この集計は、各実験の<b>1 回目の人だけ</b>です。同じ人が何回もやっても数字がかたよらないようにしています。</p>`;
+  if (split && mine && mine.n > 1) h += `<p class="warn"><b>あなたは ${mine.n} 回目なので、みんなの結果（1 回目の人）には入らず、2 回目以降の集計に入ります。</b></p>`;
   if (kind !== "flip") {
     const fs = faceSets(s.face);
     h += crowdCompare(fs);
     // 自分がやった方を先に。「みんなの結果を見る」からは両方
     const order = kind === "face" ? [mine.set, mine.set === "photo" ? "svg" : "photo"] : ["photo", "svg"];
     order.forEach((k, j) => {
-      const body = crowdFace(fs[k], kind === "face" && j === 0 ? mine : null, k);
+      const body = crowdFace(fs[k], kind === "face" && j === 0 ? mineIn : null, k);
       h += j === 0 && kind === "face" ? body : `<details><summary>${SETS[k].name}の くわしい図</summary><div style="display:flex;flex-direction:column;gap:14px;margin-top:10px">${body}</div></details>`;
     });
   }
   if (kind === "all") h += `<h2>実験 2：第一印象、ひっくり返せる？</h2>`;
-  if (kind !== "face") h += crowdFlip(s.flip, kind === "flip" ? mine : null);
+  if (kind !== "face") h += crowdFlip(s.flip, kind === "flip" ? mineIn : null);
+  if (split) {
+    let lh = "";
+    if (kind !== "flip") lh += crowdCompare(faceSets(s.later.face));
+    if (kind === "all") lh += `<h2>実験 2：第一印象、ひっくり返せる？</h2>`;
+    if (kind !== "face") lh += crowdFlip(s.later.flip, null);
+    h += `<details><summary>2 回目以降の人の集計</summary><div style="display:flex;flex-direction:column;gap:14px;margin-top:10px">${lh}</div></details>`;
+  }
   cv.innerHTML = h;
 }
 function crowdBlock(box, kind, payload, mine){
   box.innerHTML = `<h2>みんなの結果</h2><div id="cctl"></div><p class="sub" id="cst" aria-live="polite"></p><div id="cv" style="display:flex;flex-direction:column;gap:14px"></div>`;
   const ctl = box.querySelector("#cctl"), st = box.querySelector("#cst"), cv = box.querySelector("#cv");
   if (!ENDPOINT) { renderCrowd(cv, demoStats(), kind, mine); return; }
-  ctl.innerHTML = `<p class="sub">あなたの答え（1〜7 の数字と、測った時間だけ）を加えて、みんなとくらべます。名前などは送りません。</p>
-    <div class="row" style="margin-top:10px"><button class="go" id="send">みんなの結果に加える</button><button class="ghost" id="peek">加えずに見る</button></div>`;
-  const run = async (send) => {
-    ctl.querySelectorAll("button").forEach((b) => b.disabled = true); st.textContent = "読み込み中…";
+  // 終わったら自動で送る。送れなかったときだけ「もう一度送る」を出す
+  const send = async () => {
+    ctl.replaceChildren(); st.textContent = "あなたの答え（数字だけ・名前なし）をみんなの結果に入れています…";
     try {
-      const s = await callEndpoint(send ? payload : null);
+      const s = await callEndpoint(payload);
       renderCrowd(cv, s, kind, mine);
-      if (send) { ctl.replaceChildren(); st.textContent = "加えました。ありがとう！"; }
-      else { st.textContent = ""; ctl.querySelector("#peek").remove(); ctl.querySelector("#send").disabled = false; }
-    } catch (e) { st.textContent = "集計につながりませんでした。少しあとで、もう一度押してください。"; ctl.querySelectorAll("button").forEach((b) => b.disabled = false); }
+      st.textContent = "みんなの結果に入りました。ありがとう！";
+    } catch (e) {
+      st.textContent = "送れませんでした。";
+      ctl.innerHTML = `<button class="ghost" id="resend">もう一度送る</button>`;
+      ctl.querySelector("#resend").onclick = send;
+    }
   };
-  ctl.querySelector("#send").onclick = () => run(true);
-  ctl.querySelector("#peek").onclick = () => run(false);
+  send();
 }
 async function crowdView(){
   const el = $(`<section class="sheet">
