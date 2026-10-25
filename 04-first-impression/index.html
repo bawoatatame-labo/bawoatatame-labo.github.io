@@ -214,13 +214,13 @@ function home(){
     <p class="note">実験 1 の顔は 2 種類から選べます。プログラムで描いた顔と、AI で作った写真の顔。どちらも架空の人で、実在の人ではありません。元になった研究は、それぞれの結果の画面に書いてあります。みんなの結果は、各実験の 1 回目の人だけで出します（2 回目以降は別に数えます）。</p>
   </div>`));
   document.getElementById("go-crowd").onclick = crowdView;
-  document.getElementById("go-face").onclick = faceIntro;
+  document.getElementById("go-face").onclick = () => faceIntro();   // クリックの情報を顔の種類と取り違えないように（2026-10-25）
   document.getElementById("go-flip").onclick = flipIntro;
 }
 
 /* ---------- 実験 1：0.1 秒と 1 秒 ---------- */
 function faceIntro(pre){
-  let set = pre || "photo";
+  let set = pre === "svg" || pre === "photo" ? pre : "photo";   // 選ばずに「はじめる」でも写真の顔で始まる
   const el = $(`<section class="sheet">
     <span class="tag">実験 1</span>
     <h2>0.1 秒と 1 秒で、印象は変わる？</h2>
